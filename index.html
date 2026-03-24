@@ -9,10 +9,8 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;touch-action:none;user-select:none}
 html,body{width:100%;height:100dvh;background:#0d0d1f;overflow:hidden;display:flex;align-items:center;justify-content:center}
-/* ⑤ #wrap をゲーム比率に固定 → オーバーレイがキャンバスにぴったり重なる */
 #wrap{position:relative;width:100%;aspect-ratio:16/9;max-height:100dvh;max-width:calc(100dvh * 16 / 9)}
 canvas{display:block;width:100%;height:100%}
-/* ⑤ コントロールオーバーレイ */
 #overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:flex-end;justify-content:space-between;padding:8px 10px;opacity:0;transition:opacity .25s}
 .ctrl-panel{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(0,0,0,.32);border-radius:16px;padding:7px 10px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 .row{display:flex;gap:7px}
@@ -25,14 +23,13 @@ canvas{display:block;width:100%;height:100%}
 .ailbl{color:#C77DFF}
 .ctrl-zones{display:flex;gap:8px;align-items:center}
 .zone-move{display:flex;gap:8px}
-.zone-sep{width:1px;height:52px;background:rgba(255,255,255,.18);flex-shrink:0}
+.zone-sep{width:1px;height:52px;background:rgba(255,255,255,.18);flex-shrink:0;margin:0 20px}
 .zone-action{display:flex;gap:8px;align-items:center}
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
-  <!-- ⑤ ゲーム画面上にオーバーレイするコントローラー -->
   <div id="overlay">
     <div class="ctrl-panel" id="side1">
       <div class="p1lbl lbl" id="lbl1">P1 (水色)</div>
@@ -41,8 +38,9 @@ canvas{display:block;width:100%;height:100%}
           <button class="btn" id="b_p1l">◀</button>
           <button class="btn" id="b_p1u">▲</button>
           <button class="btn" id="b_p1r">▶</button>
-          <button class="btn" id="b_p1g">⬇</button>
         </div>
+        <div class="zone-sep"></div>
+        <button class="btn" id="b_p1g">⬇</button>
       </div>
     </div>
     <div class="ctrl-panel" id="side2">
@@ -52,8 +50,9 @@ canvas{display:block;width:100%;height:100%}
           <button class="btn" id="b_p2l">◀</button>
           <button class="btn" id="b_p2u">▲</button>
           <button class="btn" id="b_p2r">▶</button>
-          <button class="btn" id="b_p2g">⬇</button>
         </div>
+        <div class="zone-sep" id="p2sep"></div>
+        <button class="btn" id="b_p2g">⬇</button>
       </div>
     </div>
   </div>
@@ -64,7 +63,7 @@ const GL_X=20,GL_W=16,GL_H=85,GR_X=800-20-16;
 
 const AI_PARAMS=[
   {speed:2.5,jumpDist:50,jumpCooldown:40,predSteps:30,mistakeRate:.28},
-  {speed:4.5,jumpDist:65,jumpCooldown:25,predSteps:80, mistakeRate:0},
+  {speed:4.5,jumpDist:65,jumpCooldown:25,predSteps:80,mistakeRate:0},
   {speed:6.0,jumpDist:80,jumpCooldown:12,predSteps:120,mistakeRate:0}
 ];
 const DIFF_LABELS=['やさしい','ふつう','むずかしい'];
@@ -92,11 +91,9 @@ c.addEventListener('pointerup',e=>{
   handleCanvasClick((e.clientX-rc.left)*scl,(e.clientY-rc.top)*scl);
 });
 
-// ─── ② バイブレーション ───
 function vib(pattern){if(navigator.vibrate)navigator.vibrate(pattern);}
 let vibCD=0;
 
-// ─── BGM/SE ───
 const AudioCtx=window.AudioContext||window.webkitAudioContext;
 let audioCtx=null,muted=false,bgmPlaying=false,bgmTid=null;
 function getAC(){if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
@@ -134,7 +131,6 @@ function startBGM(){if(bgmPlaying||muted)return;bgmPlaying=true;bgmStep(0);}
 function stopBGM(){bgmPlaying=false;if(bgmTid){clearTimeout(bgmTid);bgmTid=null;}}
 function toggleMute(){muted=!muted;if(muted)stopBGM();else if(st!==MENU&&st!==END)startBGM();}
 
-// ─── ③ Wake Lock ───
 let wakeLock=null;
 async function requestWakeLock(){
   if(!('wakeLock' in navigator))return;
@@ -145,7 +141,6 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&st!==MENU&&st!==END)requestWakeLock();
 });
 
-// ─── ④ フルスクリーン ───
 function toggleFullscreen(){
   const el=document.documentElement;
   const isFS=document.fullscreenElement||document.webkitFullscreenElement;
@@ -154,7 +149,6 @@ function toggleFullscreen(){
   else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
 }
 
-// ─── ⑤ オーバーレイ表示切替 ───
 function showControls(show){
   const ov=document.getElementById('overlay');
   ov.style.opacity=show?'1':'0';
@@ -163,7 +157,6 @@ function showControls(show){
 
 const MENU=0,PLAY=1,GOAL=2,END=3,KICKOFF=4;
 let st=MENU,mode=0,aiDiff=1,timeIdx=2,matchTime=3;
-// P1: WASD固定 / 矢印: 2PモードはP2、1PモードはP1代替（両手対応）
 const km1={KeyA:'p1l',KeyD:'p1r',KeyW:'p1u',KeyS:'p1g'};
 document.addEventListener('keydown',e=>{
   if(km1[e.code])inp[km1[e.code]]=true;
@@ -194,6 +187,9 @@ function applyMode(){
   const op=aiMode?'0.25':'1',pe=aiMode?'none':'auto';
   document.getElementById('p2btns').style.opacity=op;
   document.getElementById('p2btns').style.pointerEvents=pe;
+  document.getElementById('p2sep').style.opacity=op;
+  document.getElementById('b_p2g').style.opacity=op;
+  document.getElementById('b_p2g').style.pointerEvents=pe;
 }
 
 function startGame(){
@@ -201,12 +197,11 @@ function startGame(){
   aiCD=0;aiGrabT=0;vibCD=0;
   initSlimes();initBall(0);st=PLAY;
   applyMode();
-  showControls(true);   // ⑤ ゲーム開始でオーバーレイ表示
-  requestWakeLock();    // ③ スリープ防止ON
+  showControls(true);
+  requestWakeLock();
   startBGM();
 }
 
-// ── AI ──
 function doAI(){
   const s=slimes[1],b=ball,ap=AI_PARAMS[aiDiff];
   aiCD=Math.max(0,aiCD-1);
@@ -241,9 +236,8 @@ function doAI(){
   }
 }
 
-// ── Update ──
 function update(){
-  vibCD=Math.max(0,vibCD-1); // ② バイブCDカウントダウン
+  vibCD=Math.max(0,vibCD-1);
   if(st===KICKOFF){
     const loser=1-goalWho,s=slimes[loser];
     if(loser===0){if(inp.p1l)s.vx=-4.5;else if(inp.p1r)s.vx=4.5;else s.vx*=.75;}
@@ -256,7 +250,10 @@ function update(){
     const fire=loser===0?inp.p1u:(mode===1?inp.p2u:!!s._kickFire);
     if(fire){
       s.grab=false;ball.grab=-1;s._kickTimer=null;s._kickFire=false;
-      ball.vx=loser===0?4:-4;ball.vy=-13;s.vy=-14;s.onG=false;st=PLAY;seJump();
+      let kx;
+      if(loser===0){kx=inp.p1l?-6:inp.p1r?10:5;}
+      else{kx=mode===1?(inp.p2l?-10:inp.p2r?6:-5):-5;}
+      ball.vx=kx;ball.vy=-13;s.vy=-14;s.onG=false;st=PLAY;seJump();
     }
     return;
   }
@@ -304,7 +301,7 @@ function update(){
         if(rv<0){
           ball.vx-=1.5*rv*nx;ball.vy-=1.5*rv*ny;
           if(ball.vy>-2)ball.vy=-5;ball.vy=Math.max(-20,ball.vy);
-          if(vibCD===0){vib(18);vibCD=12;seHit();} // ② 衝突バイブ
+          if(vibCD===0){vib(18);vibCD=12;seHit();}
         }
       }
     }
@@ -313,7 +310,7 @@ function update(){
 
 function scoreGoal(who){
   score[who]++;goalWho=who;st=GOAL;
-  vib([100,50,100,50,200]); // ② ゴールバイブ
+  vib([100,50,100,50,200]);
   stopBGM();seGoal();
   setTimeout(()=>{
     initSlimes();
@@ -324,7 +321,6 @@ function scoreGoal(who){
   },2000);
 }
 
-// ── Draw ──
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
 function lighten(h,n){const[r,g,b]=hexRGB(h);return`rgb(${Math.min(255,r+n)},${Math.min(255,g+n)},${Math.min(255,b+n)})`;}
 function darken(h,n){const[r,g,b]=hexRGB(h);return`rgb(${Math.max(0,r-n)},${Math.max(0,g-n)},${Math.max(0,b-n)})`;}
@@ -365,13 +361,11 @@ function drawSlime(s,col,idx){
   ctx.fillStyle='white';ctx.beginPath();ctx.arc(ex,ey,7.5,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#1a1a2e';ctx.beginPath();ctx.arc(ex+lookDir*2,ey+1,4.5,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='white';ctx.beginPath();ctx.arc(ex+lookDir*1,ey-1.5,1.5,0,Math.PI*2);ctx.fill();
-  // 表情
   let mood='normal';
   if(st===END){if(score[0]>score[1])mood=idx===0?'happy':'sad';else if(score[1]>score[0])mood=idx===1?'happy':'sad';}
   else if(st===GOAL||st===KICKOFF){mood=goalWho===idx?'happy':'sad';}
   else if(s.grab||ball.grab===idx){mood='excited';}
   else if(!s.onG){mood='jump';}
-  // 眉
   const bi=ex-lookDir*8,bo=ex+lookDir*6;
   ctx.strokeStyle='#1a1a2e';ctx.lineWidth=2.5;ctx.lineCap='round';
   ctx.beginPath();
@@ -380,12 +374,11 @@ function drawSlime(s,col,idx){
   else if(mood==='jump'){ctx.moveTo(bi,ey-14);ctx.lineTo(bo,ey-14);}
   else{ctx.moveTo(bi,ey-11);ctx.lineTo(bo,ey-11);}
   ctx.stroke();
-  // 口
   const mox=s.x,moy=s.y-SR*.22;
   ctx.lineWidth=2.5;ctx.lineCap='round';
   if(mood==='excited'||mood==='jump'){
     ctx.fillStyle='#1a1a2e';ctx.beginPath();ctx.ellipse(mox,moy,4,6,0,0,Math.PI*2);ctx.fill();
-  }else{
+  } else {
     ctx.strokeStyle='#1a1a2e';ctx.beginPath();
     if(mood==='happy'){ctx.arc(mox,moy-6,6,Math.PI,2*Math.PI);}
     else if(mood==='sad'){ctx.arc(mox,moy+4,5,Math.PI,2*Math.PI,true);}
@@ -401,7 +394,6 @@ function drawBall(){
   let gr=ctx.createRadialGradient(-BR*.28,-BR*.3,1,0,0,BR);
   gr.addColorStop(0,'#FFFFFF');gr.addColorStop(.5,'#EFEFEF');gr.addColorStop(1,'#BFBFBF');
   ctx.fillStyle=gr;ctx.fillRect(-BR,-BR,BR*2,BR*2);
-  // Brazuca風 6枚プロペラパネル
   ctx.fillStyle='#1a1a2e';
   for(let i=0;i<6;i++){
     const a=i/6*Math.PI*2;
@@ -463,13 +455,11 @@ function drawMenu(){
   drawMenuSlime(45,90,28,'#7EDCF0',1);
   drawMenuSlime(W-45,90,28,'#FF9EAF',-1);
 
-  // ④ 全画面ボタン（右上）
   const isFS=!!(document.fullscreenElement||document.webkitFullscreenElement);
   ctx.fillStyle='rgba(255,255,255,.15)';rr(752,8,42,28,7);ctx.fill();
   ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;rr(752,8,42,28,7);ctx.stroke();
   ctx.fillStyle='#FFF';ctx.font='12px Arial';ctx.textAlign='center';
   ctx.fillText(isFS?'縮小':'全画面',773,26);
-  // ミュートボタン（全画面の左）
   ctx.fillStyle=muted?'rgba(255,100,100,.25)':'rgba(255,255,255,.15)';rr(704,8,42,28,7);ctx.fill();
   ctx.strokeStyle=muted?'rgba(255,120,120,.6)':'rgba(255,255,255,.3)';ctx.lineWidth=1;rr(704,8,42,28,7);ctx.stroke();
   ctx.fillStyle='#FFF';ctx.font='17px Arial';ctx.textAlign='center';
@@ -560,10 +550,10 @@ function handleCanvasClick(mx,my){
     const dy=mode===0?52:0;
     const tw=70,gap=9,total=5*(tw+gap)-gap,sx=(W-total)/2;
     timeOpts.forEach((_,i)=>{const x=sx+i*(tw+gap);if(mx>=x&&mx<=x+tw&&my>=218+dy&&my<=252+dy){timeIdx=i;matchTime=timeOpts[i];}});
-    const startY=354+dy; // 操作説明ボックスが4px増加した分をオフセット
+    const startY=354+dy;
     if(mx>=W/2-110&&mx<=W/2+110&&my>=startY-22&&my<=startY+22)startGame();
   }
-  if(st===END){st=MENU;showControls(false);releaseWakeLock();stopBGM();} // ③⑤ メニュー復帰
+  if(st===END){st=MENU;showControls(false);releaseWakeLock();stopBGM();}
 }
 document.addEventListener('keydown',e=>{
   if(st===MENU){
@@ -590,11 +580,11 @@ function loop(){
       if(st===KICKOFF){
         ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(0,0,W,H);
         const loser=1-goalWho,col=loser===0?'#7EDCF0':(mode===0?'#C77DFF':'#FF9EAF');
-        const who=loser===0?'P1':(mode===0?'AI':'P2');
-        ctx.font='bold 22px Arial';ctx.textAlign='center';ctx.fillStyle=col;
-        ctx.shadowColor=col;ctx.shadowBlur=10;
-        ctx.fillText(`${who}：▲ を押してキックオフ！`,W/2,H/2+55);
-        ctx.shadowBlur=0;
+        if(!(loser===1&&mode===0)){
+          const who=loser===0?'P1':'P2';
+          ctx.font='bold 22px Arial';ctx.textAlign='center';ctx.fillStyle=col;
+          ctx.shadowColor=col;ctx.shadowBlur=10;ctx.fillText(`${who}：▲ を押してキックオフ！`,W/2,H/2+55);ctx.shadowBlur=0;
+        }
       }
     }
     if(st===END){drawField();drawGoals();drawSlime(slimes[0],'#7EDCF0',0);drawSlime(slimes[1],mode===0?'#C77DFF':'#FF9EAF',1);drawBall();drawHUD();drawEnd();}
