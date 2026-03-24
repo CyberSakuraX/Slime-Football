@@ -18,10 +18,15 @@ canvas{display:block;width:100%;height:100%}
 .btn{width:62px;height:58px;border-radius:14px;border:2px solid rgba(255,255,255,.22);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;font-family:Arial;transition:background .07s,transform .07s,border-color .07s;flex-shrink:0;touch-action:none}
 .btn.wide{width:136px;font-size:14px}
 .btn.act{background:rgba(255,255,255,.48);transform:scale(.9);border-color:rgba(255,255,255,.7)}
-.lbl{font-size:11px;font-weight:bold;font-family:Arial;margin-bottom:1px}
+.lbl{font-size:11px;font-weight:bold;font-family:Arial;margin-bottom:2px}
 .p1lbl{color:#7EDCF0}
 .p2lbl{color:#FF9EAF}
 .ailbl{color:#C77DFF}
+/* B案: 2ゾーン分離レイアウト */
+.ctrl-zones{display:flex;gap:10px;align-items:center}
+.zone-move{display:flex;gap:8px}
+.zone-sep{width:1px;height:52px;background:rgba(255,255,255,.18);flex-shrink:0}
+.zone-action{display:flex;flex-direction:column;gap:6px;align-items:center}
 </style>
 </head>
 <body>
@@ -31,24 +36,30 @@ canvas{display:block;width:100%;height:100%}
   <div id="overlay">
     <div class="ctrl-panel" id="side1">
       <div class="p1lbl lbl" id="lbl1">P1 (水色)</div>
-      <div class="row">
-        <button class="btn" id="b_p1l">◀</button>
-        <button class="btn" id="b_p1u">▲</button>
-        <button class="btn" id="b_p1r">▶</button>
-      </div>
-      <div class="row">
-        <button class="btn wide" id="b_p1g">⬇ グラブ</button>
+      <div class="ctrl-zones">
+        <div class="zone-move">
+          <button class="btn" id="b_p1l">◀</button>
+          <button class="btn" id="b_p1r">▶</button>
+        </div>
+        <div class="zone-sep"></div>
+        <div class="zone-action">
+          <button class="btn" id="b_p1u">▲</button>
+          <button class="btn" id="b_p1g">⬇</button>
+        </div>
       </div>
     </div>
     <div class="ctrl-panel" id="side2">
       <div class="p2lbl lbl" id="lbl2">P2 (ピンク)</div>
-      <div class="row" id="p2btns">
-        <button class="btn" id="b_p2l">◀</button>
-        <button class="btn" id="b_p2u">▲</button>
-        <button class="btn" id="b_p2r">▶</button>
-      </div>
-      <div class="row" id="p2grab">
-        <button class="btn wide" id="b_p2g">⬇ グラブ</button>
+      <div class="ctrl-zones">
+        <div class="zone-move" id="p2btns">
+          <button class="btn" id="b_p2l">◀</button>
+          <button class="btn" id="b_p2r">▶</button>
+        </div>
+        <div class="zone-sep" id="p2sep"></div>
+        <div class="zone-action" id="p2grab">
+          <button class="btn" id="b_p2u">▲</button>
+          <button class="btn" id="b_p2g">⬇</button>
+        </div>
       </div>
     </div>
   </div>
@@ -66,9 +77,22 @@ const DIFF_LABELS=['やさしい','ふつう','むずかしい'];
 const DIFF_COLORS=['#7AE68A','#FFE99A','#FF7B7B'];
 
 const inp={p1l:false,p1r:false,p1u:false,p1g:false,p2l:false,p2r:false,p2u:false,p2g:false};
-const km={ArrowLeft:'p1l',ArrowRight:'p1r',ArrowUp:'p1u',ArrowDown:'p1g',KeyA:'p2l',KeyD:'p2r',KeyW:'p2u',KeyS:'p2g'};
-document.addEventListener('keydown',e=>{if(km[e.code])inp[km[e.code]]=true;});
-document.addEventListener('keyup',e=>{if(km[e.code])inp[km[e.code]]=false;});
+// P1: WASD固定 / 矢印: 2PモードはP2、1PモードはP1代替（両手対応）
+const km1={KeyA:'p1l',KeyD:'p1r',KeyW:'p1u',KeyS:'p1g'};
+document.addEventListener('keydown',e=>{
+  if(km1[e.code])inp[km1[e.code]]=true;
+  if(e.code==='ArrowLeft') {if(mode===1)inp.p2l=true;else inp.p1l=true;}
+  if(e.code==='ArrowRight'){if(mode===1)inp.p2r=true;else inp.p1r=true;}
+  if(e.code==='ArrowUp')   {if(mode===1)inp.p2u=true;else inp.p1u=true;}
+  if(e.code==='ArrowDown') {if(mode===1)inp.p2g=true;else inp.p1g=true;}
+});
+document.addEventListener('keyup',e=>{
+  if(km1[e.code])inp[km1[e.code]]=false;
+  if(e.code==='ArrowLeft') {inp.p2l=false;inp.p1l=false;}
+  if(e.code==='ArrowRight'){inp.p2r=false;inp.p1r=false;}
+  if(e.code==='ArrowUp')   {inp.p2u=false;inp.p1u=false;}
+  if(e.code==='ArrowDown') {inp.p2g=false;inp.p1g=false;}
+});
 
 function addBtn(id,key){
   const el=document.getElementById(id);
@@ -135,10 +159,12 @@ function applyMode(){
   const aiMode=mode===0;
   document.getElementById('lbl2').textContent=aiMode?'🤖 AI':'P2 (ピンク)';
   document.getElementById('lbl2').className=aiMode?'ailbl lbl':'p2lbl lbl';
-  document.getElementById('p2btns').style.opacity=aiMode?'0.25':'1';
-  document.getElementById('p2grab').style.opacity=aiMode?'0.25':'1';
-  document.getElementById('p2btns').style.pointerEvents=aiMode?'none':'auto';
-  document.getElementById('p2grab').style.pointerEvents=aiMode?'none':'auto';
+  const op=aiMode?'0.25':'1',pe=aiMode?'none':'auto';
+  document.getElementById('p2btns').style.opacity=op;
+  document.getElementById('p2grab').style.opacity=op;
+  document.getElementById('p2sep').style.opacity=op;
+  document.getElementById('p2btns').style.pointerEvents=pe;
+  document.getElementById('p2grab').style.pointerEvents=pe;
 }
 
 function startGame(){
@@ -408,19 +434,22 @@ function drawMenu(){
   });
 
   const cy=258+dy;
-  ctx.fillStyle='rgba(255,255,255,.07)';rr(40,cy,W-80,52,10);ctx.fill();
-  ctx.font='12px Arial';ctx.textAlign='left';
-  ctx.fillStyle='#7EDCF0';ctx.fillText('P1（水色）',52,cy+16);
-  ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('◀▶ 移動  ▲ ジャンプ  ⬇ グラブ',52,cy+32);
+  ctx.fillStyle='rgba(255,255,255,.07)';rr(40,cy,W-80,56,10);ctx.fill();
+  ctx.font='11px Arial';ctx.textAlign='left';
   if(mode===0){
-    ctx.fillStyle='#C77DFF';ctx.fillText('🤖 AI',52,cy+48);
-    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('自動でプレイします',115,cy+48);
+    ctx.fillStyle='#7EDCF0';ctx.fillText('P1（水色）',52,cy+16);
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('移動: A / D　　ジャンプ: W または ↑　　グラブ: S または ↓',130,cy+16);
+    ctx.fillStyle='rgba(255,255,255,.35)';ctx.fillText('※ 左手で移動（A/D）、右手でジャンプ・グラブ（↑/↓）も可',52,cy+36);
+    ctx.fillStyle='#C77DFF';ctx.fillText('🤖 AI',52,cy+52);
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('自動でプレイします',107,cy+52);
   } else {
-    ctx.fillStyle='#FF9EAF';ctx.fillText('P2（ピンク）',52,cy+48);
-    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('◀▶ 移動  ▲ ジャンプ  ⬇ グラブ',160,cy+48);
+    ctx.fillStyle='#7EDCF0';ctx.fillText('P1（水色）',52,cy+18);
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('移動: A / D　　ジャンプ: W　　グラブ: S',130,cy+18);
+    ctx.fillStyle='#FF9EAF';ctx.fillText('P2（ピンク）',52,cy+42);
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('移動: ← / →　　ジャンプ: ↑　　グラブ: ↓',130,cy+42);
   }
 
-  const startY=350+dy;
+  const startY=354+dy;
   const p=.97+.03*Math.sin(menuT*.09);
   ctx.save();ctx.translate(W/2,startY);ctx.scale(p,p);
   gr=ctx.createLinearGradient(-110,-22,110,22);
@@ -440,7 +469,7 @@ function drawMenuSlime(x,y,r,col,dir){
 
 function handleCanvasClick(mx,my){
   if(st===MENU){
-    if(mx>=752&&mx<=794&&my>=8&&my<=36){toggleFullscreen();return;} // ④ 全画面ボタン
+    if(mx>=752&&mx<=794&&my>=8&&my<=36){toggleFullscreen();return;}
     if(my>=107&&my<=145){mode=mx<W/2?0:1;}
     if(mode===0&&my>=165&&my<=199){
       const dw=170,dg=12,dsx=(W-(3*(dw+dg)-dg))/2;
@@ -449,7 +478,7 @@ function handleCanvasClick(mx,my){
     const dy=mode===0?52:0;
     const tw=70,gap=9,total=5*(tw+gap)-gap,sx=(W-total)/2;
     timeOpts.forEach((_,i)=>{const x=sx+i*(tw+gap);if(mx>=x&&mx<=x+tw&&my>=218+dy&&my<=252+dy){timeIdx=i;matchTime=timeOpts[i];}});
-    const startY=350+dy;
+    const startY=354+dy; // 操作説明ボックスが4px増加した分をオフセット
     if(mx>=W/2-110&&mx<=W/2+110&&my>=startY-22&&my<=startY+22)startGame();
   }
   if(st===END){st=MENU;showControls(false);releaseWakeLock();} // ③⑤ メニュー復帰
