@@ -39,11 +39,11 @@ canvas{display:block;width:100%;height:100%}
       <div class="ctrl-zones">
         <div class="zone-move">
           <button class="btn" id="b_p1l">◀</button>
+          <button class="btn" id="b_p1u">▲</button>
           <button class="btn" id="b_p1r">▶</button>
         </div>
         <div class="zone-sep"></div>
         <div class="zone-action">
-          <button class="btn" id="b_p1u">▲</button>
           <button class="btn" id="b_p1g">⬇</button>
         </div>
       </div>
@@ -53,11 +53,11 @@ canvas{display:block;width:100%;height:100%}
       <div class="ctrl-zones">
         <div class="zone-move" id="p2btns">
           <button class="btn" id="b_p2l">◀</button>
+          <button class="btn" id="b_p2u">▲</button>
           <button class="btn" id="b_p2r">▶</button>
         </div>
         <div class="zone-sep" id="p2sep"></div>
         <div class="zone-action" id="p2grab">
-          <button class="btn" id="b_p2u">▲</button>
           <button class="btn" id="b_p2g">⬇</button>
         </div>
       </div>
@@ -77,22 +77,6 @@ const DIFF_LABELS=['やさしい','ふつう','むずかしい'];
 const DIFF_COLORS=['#7AE68A','#FFE99A','#FF7B7B'];
 
 const inp={p1l:false,p1r:false,p1u:false,p1g:false,p2l:false,p2r:false,p2u:false,p2g:false};
-// P1: WASD固定 / 矢印: 2PモードはP2、1PモードはP1代替（両手対応）
-const km1={KeyA:'p1l',KeyD:'p1r',KeyW:'p1u',KeyS:'p1g'};
-document.addEventListener('keydown',e=>{
-  if(km1[e.code])inp[km1[e.code]]=true;
-  if(e.code==='ArrowLeft') {if(mode===1)inp.p2l=true;else inp.p1l=true;}
-  if(e.code==='ArrowRight'){if(mode===1)inp.p2r=true;else inp.p1r=true;}
-  if(e.code==='ArrowUp')   {if(mode===1)inp.p2u=true;else inp.p1u=true;}
-  if(e.code==='ArrowDown') {if(mode===1)inp.p2g=true;else inp.p1g=true;}
-});
-document.addEventListener('keyup',e=>{
-  if(km1[e.code])inp[km1[e.code]]=false;
-  if(e.code==='ArrowLeft') {inp.p2l=false;inp.p1l=false;}
-  if(e.code==='ArrowRight'){inp.p2r=false;inp.p1r=false;}
-  if(e.code==='ArrowUp')   {inp.p2u=false;inp.p1u=false;}
-  if(e.code==='ArrowDown') {inp.p2g=false;inp.p1g=false;}
-});
 
 function addBtn(id,key){
   const el=document.getElementById(id);
@@ -147,6 +131,22 @@ function showControls(show){
 
 const MENU=0,PLAY=1,GOAL=2,END=3,KICKOFF=4;
 let st=MENU,mode=0,aiDiff=1,timeIdx=2,matchTime=3;
+// P1: WASD固定 / 矢印: 2PモードはP2、1PモードはP1代替（両手対応）
+const km1={KeyA:'p1l',KeyD:'p1r',KeyW:'p1u',KeyS:'p1g'};
+document.addEventListener('keydown',e=>{
+  if(km1[e.code])inp[km1[e.code]]=true;
+  if(e.code==='ArrowLeft') {if(mode===1)inp.p2l=true;else inp.p1l=true;}
+  if(e.code==='ArrowRight'){if(mode===1)inp.p2r=true;else inp.p1r=true;}
+  if(e.code==='ArrowUp')   {if(mode===1)inp.p2u=true;else inp.p1u=true;}
+  if(e.code==='ArrowDown') {if(mode===1)inp.p2g=true;else inp.p1g=true;}
+});
+document.addEventListener('keyup',e=>{
+  if(km1[e.code])inp[km1[e.code]]=false;
+  if(e.code==='ArrowLeft') {inp.p2l=false;inp.p1l=false;}
+  if(e.code==='ArrowRight'){inp.p2r=false;inp.p1r=false;}
+  if(e.code==='ArrowUp')   {inp.p2u=false;inp.p1u=false;}
+  if(e.code==='ArrowDown') {inp.p2g=false;inp.p1g=false;}
+});
 const timeOpts=[1,2,3,5,8];
 let score=[0,0],timer=0,goalWho=-1;
 let aiCD=0,aiGrabT=0;
