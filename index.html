@@ -22,11 +22,10 @@ canvas{display:block;width:100%;height:100%}
 .p1lbl{color:#7EDCF0}
 .p2lbl{color:#FF9EAF}
 .ailbl{color:#C77DFF}
-/* B案: 2ゾーン分離レイアウト */
-.ctrl-zones{display:flex;gap:10px;align-items:center}
+.ctrl-zones{display:flex;gap:8px;align-items:center}
 .zone-move{display:flex;gap:8px}
 .zone-sep{width:1px;height:52px;background:rgba(255,255,255,.18);flex-shrink:0}
-.zone-action{display:flex;flex-direction:column;gap:6px;align-items:center}
+.zone-action{display:flex;gap:8px;align-items:center}
 </style>
 </head>
 <body>
@@ -41,9 +40,6 @@ canvas{display:block;width:100%;height:100%}
           <button class="btn" id="b_p1l">◀</button>
           <button class="btn" id="b_p1u">▲</button>
           <button class="btn" id="b_p1r">▶</button>
-        </div>
-        <div class="zone-sep"></div>
-        <div class="zone-action">
           <button class="btn" id="b_p1g">⬇</button>
         </div>
       </div>
@@ -55,9 +51,6 @@ canvas{display:block;width:100%;height:100%}
           <button class="btn" id="b_p2l">◀</button>
           <button class="btn" id="b_p2u">▲</button>
           <button class="btn" id="b_p2r">▶</button>
-        </div>
-        <div class="zone-sep" id="p2sep"></div>
-        <div class="zone-action" id="p2grab">
           <button class="btn" id="b_p2g">⬇</button>
         </div>
       </div>
@@ -161,10 +154,7 @@ function applyMode(){
   document.getElementById('lbl2').className=aiMode?'ailbl lbl':'p2lbl lbl';
   const op=aiMode?'0.25':'1',pe=aiMode?'none':'auto';
   document.getElementById('p2btns').style.opacity=op;
-  document.getElementById('p2grab').style.opacity=op;
-  document.getElementById('p2sep').style.opacity=op;
   document.getElementById('p2btns').style.pointerEvents=pe;
-  document.getElementById('p2grab').style.pointerEvents=pe;
 }
 
 function startGame(){
