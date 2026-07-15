@@ -1,5 +1,6 @@
 Exit code: 0
-Wall time: 1.4 seconds
+Wall time: 1 seconds
+Total output lines: 823
 Output:
 <!DOCTYPE html>
 <html lang="ja">
@@ -14,6 +15,17 @@ Output:
 html,body{width:100%;height:100dvh;background:#0d0d1f;overflow:hidden;display:flex;align-items:center;justify-content:center}
 #wrap{position:relative;width:100%;aspect-ratio:16/9;max-height:100dvh;max-width:calc(100dvh * 16 / 9);container-type:inline-size}
 canvas{display:block;width:100%;height:100%}
+#menuUI{position:absolute;inset:0;z-index:2;display:none;pointer-events:none;align-items:center;justify-content:center;padding:clamp(14px,3cqw,30px);font-family:Arial,sans-serif;color:#fff;background:linear-gradient(180deg,#120820 0%,#0c1845 55%,#1a2e10 100%)}
+#menuUI.is-visible{display:flex;pointer-events:auto}
+.menu-card{width:min(680px,100%);display:grid;gap:clamp(8px,1.3cqw,14px);text-align:center}
+.menu-title{font-size:clamp(28px,5.6cqw,46px);line-height:1;color:#ff9eb0;text-shadow:0 0 18px #ff6ba8}
+.menu-section{display:grid;gap:6px}.menu-label{font-size:clamp(12px,1.8cqw,15px);font-weight:bold;color:rgba(255,255,255,.88)}
+.menu-options{display:grid;gap:8px}.menu-options.mode{grid-template-columns:1fr 1fr}.menu-options.diff{grid-template-columns:repeat(3,1fr)}.menu-options.time{grid-template-columns:repeat(5,1fr)}
+.menu-btn{min-height:clamp(34px,5cqw,44px);border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:clamp(12px,1.8cqw,15px);font-weight:bold;cursor:pointer}
+.menu-btn.selected{background:#fff;color:#301140;border-color:#e4a5ff;box-shadow:0 0 0 2px rgba(199,125,255,.35)}
+.menu-btn.diff-selected{background:#ffe99a;color:#221d10;border-color:#ffe99a}.menu-btn.time-selected{background:#ffd93d;color:#221d10;border-color:#ffd93d}
+#menuStart{min-height:clamp(46px,6.5cqw,58px);border:0;border-radius:14px;background:linear-gradient(90deg,#ff6ba8,#c77dff,#7ec8e3);color:#fff;font-size:clamp(18px,2.7cqw,24px);font-weight:bold;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.menu-help{font-size:clamp(10px,1.5cqw,12px);color:rgba(255,255,255,.7)}
 #overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:flex-end;justify-content:space-between;padding:8px 10px;opacity:0;transition:opacity .25s}
 .ctrl-panel{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:5px 7px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 .row{display:flex;gap:7px}
@@ -56,6 +68,15 @@ canvas{display:block;width:100%;height:100%}
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
+  <div id="menuUI" class="is-visible">
+    <main class="menu-card" aria-label="ゲーム設定">
+      <h1 class="menu-title">スライムサッカー</h1>
+      <section class="menu-section"><div class="menu-label">ゲームモード</div><div class="menu-options mode"><button class="menu-btn" data-mode="0">🤖 1P vs AI</button><button class="menu-btn" data-mode="1">👥 2P 対戦</button></div></section>
+      <section class="menu-section" id="difficultyMenu"><div class="menu-label">AI の強さ</div><div class="menu-options diff"><button class="menu-btn" data-difficulty="0">やさしい</button><button class="menu-btn" data-difficulty="1">ふつう</button><button class="menu-btn" data-difficulty="2">むずかしい</button></div></section>
+      <section class="menu-section"><div class="menu-label">試合時間</div><div class="menu-options time"><button class="menu-btn" data-time="0">1分</button><button class="menu-btn" data-time="1">2分</button><button class="menu-btn" data-time="2">3分</button><button class="menu-btn" data-time="3">5分</button><button class="menu-btn" data-time="4">8分</button></div></section>
+      <button id="menuStart">▶ スタート！</button><p class="menu-help">横向きで遊ぶと、タッチ操作が快適です</p>
+    </main>
+  </div>
   <div id="overlay">
     <div class="ctrl-panel" id="side1">
       <div class="p1lbl lbl" id="lbl1">P1 (水色)</div>
@@ -104,15 +125,25 @@ const AI_PARAMS=[
 const DIFF_LABELS=['やさしい','ふつう','むずかしい'];
 const DIFF_COLORS=['#7AE68A','#FFE99A','#FF7B7B'];
 
-const inp={p1l:false,p1r:false,p1u:false,p1g:false,p2l:false,p2r:false,p2u:false,p2g:false};
+const INPUT_KEYS=['p1l','p1r','p1u','p1g','p2l','p2r','p2u','p2g'];
+const inp=Object.fromEntries(INPUT_KEYS.map(key=>[key,false]));
+const inputSources=Object.fromEntries(INPUT_KEYS.map(key=>[key,new Set()]));
+function setInput(key,source,pressed){
+  const sources=inputSources[key];
+  if(!sources)return;
+  if(pressed)sources.add(source);else sources.delete(source);
+  inp[key]=sources.size>0;
+}
+function clearInputSource(source){INPUT_KEYS.forEach(key=>setInput(key,source,false));}
+function resetInputs(){INPUT_KEYS.forEach(key=>{inputSources[key].clear();inp[key]=false;});}
 
 function addBtn(id,key){
   const el=document.getElementById(id);
-  const ptrs=new Set();
+  const source=id+':';
   el.addEventListener('pointerdown',e=>{
-    e.preventDefault();el.setPointerCapture(e.pointerId);ptrs.add(e.pointerId);inp[key]=true;el.classList.add('act');
+    e.preventDefault();el.setPointerCapture(e.pointerId);setInput(key,source+e.pointerId,true);el.classList.add('act');
   },{passive:false});
-  const rel=e=>{ptrs.delete(e.pointerId);if(ptrs.size===0){inp[key]=false;el.classList.remove('act');}};
+  const rel=e=>{setInput(key,source+e.pointerId,false);if(!inp[key])el.classList.remove('act');};
   el.addEventListener('pointerup',rel);el.addEventListener('pointercancel',rel);el.addEventListener('lostpointercapture',rel);
 }
 ['p1l','p1r','p1u','p1g','p2l','p2r','p2u','p2g'].forEach(k=>addBtn('b_'+k,k));
@@ -206,18 +237,15 @@ let st=MENU,mode=0,aiDiff=1,timeIdx=2,matchTime=3;
 let goalTimer=null,kickoffTimer=null;
 const km1={KeyA:'p1l',KeyD:'p1r',KeyW:'p1u',KeyS:'p1g'};
 document.addEventListener('keydown',e=>{
-  if(km1[e.code])inp[km1[e.code]]=true;
-  if(e.code==='ArrowLeft') {if(mode===1)inp.p2l=true;else inp.p1l=true;}
-  if(e.code==='ArrowRight'){if(mode===1)inp.p2r=true;else inp.p1r=true;}
-  if(e.code==='ArrowUp')   {if(mode===1)inp.p2u=true;else inp.p1u=true;}
-  if(e.code==='ArrowDown') {if(mode===1)inp.p2g=true;else inp.p1g=true;}
+  const source='key:'+e.code;clearInputSource(source);
+  if(km1[e.code])setInput(km1[e.code],source,true);
+  if(e.code==='ArrowLeft') setInput(mode===1?'p2l':'p1l',source,true);
+  if(e.code==='ArrowRight')setInput(mode===1?'p2r':'p1r',source,true);
+  if(e.code==='ArrowUp')   setInput(mode===1?'p2u':'p1u',source,true);
+  if(e.code==='ArrowDown') setInput(mode===1?'p2g':'p1g',source,true);
 });
 document.addEventListener('keyup',e=>{
-  if(km1[e.code])inp[km1[e.code]]=false;
-  if(e.code==='ArrowLeft') {inp.p2l=false;inp.p1l=false;}
-  if(e.code==='ArrowRight'){inp.p2r=false;inp.p1r=false;}
-  if(e.code==='ArrowUp')   {inp.p2u=false;inp.p1u=false;}
-  if(e.code==='ArrowDown') {inp.p2g=false;inp.p1g=false;}
+  clearInputSource('key:'+e.code);
 });
 const timeOpts=[1,2,3,5,8];
 let score=[0,0],timer=0,goalWho=-1;
@@ -228,10 +256,20 @@ function clearGameTimers(){
   if(goalTimer){clearTimeout(goalTimer);goalTimer=null;}
   if(kickoffTimer){clearTimeout(kickoffTimer);kickoffTimer=null;}
 }
-function resetInputs(){Object.keys(inp).forEach(key=>inp[key]=false);}
+function syncMenuUI(){
+  const ui=document.getElementById('menuUI');
+  ui.querySelectorAll('[data-mode]').forEach(button=>button.classList.toggle('selected',Number(button.dataset.mode)===mode));
+  ui.querySelectorAll('[data-difficulty]').forEach(button=>button.classList.toggle('diff-selected',Number(button.dataset.difficulty)===aiDiff));
+  ui.querySelectorAll('[data-time]').forEach(button=>button.classList.toggle('time-selected',Number(button.dataset.time)===timeIdx));
+  document.getElementById('difficultyMenu').hidden=mode!==0;
+}
+function showMenuUI(show){
+  document.getElementById('menuUI').classList.toggle('is-visible',show);
+  if(show)syncMenuUI();
+}
 function returnToMenu(){
   clearGameTimers();resetInputs();st=MENU;particles=[];
-  showControls(false);releaseWakeLock();stopBGM();
+  showControls(false);showMenuUI(true);releaseWakeLock();stopBGM();
 }
 function pauseGame(){if(st===PLAY){st=PAUSE;resetInputs();stopBGM();}}
 function resumeGame(){if(st===PAUSE){st=PLAY;if(!muted)startBGM();}}
@@ -267,6 +305,7 @@ function applyMode(){
   const overlay=document.getElementById('overlay');
   document.getElementById('side2').style.display=aiMode?'none':'flex';
   overlay.classList.toggle('solo',aiMode);
+  syncMenuUI();
 }
 
 function startGame(){
@@ -275,10 +314,26 @@ function startGame(){
   aiCD=0;aiGrabT=0;vibCD=0;
   initSlimes();initBall(0);st=PLAY;
   applyMode();
+  showMenuUI(false);
   showControls(true);
   requestWakeLock();
   startBGM();
 }
+let lastMenuPress=0;
+function handleMenuPress(e){
+  e.preventDefault();
+  if(Date.now()-lastMenuPress<250)return;
+  lastMenuPress=Date.now();
+  const button=e.target.closest('button');
+  if(!button)return;
+  if(button.dataset.mode!==undefined){mode=Number(button.dataset.mode);applyMode();}
+  if(button.dataset.difficulty!==undefined){aiDiff=Number(button.dataset.difficulty);syncMenuUI();}
+  if(button.dataset.time!==undefined){timeIdx=Number(button.dataset.time);matchTime=timeOpts[timeIdx];syncMenuUI();}
+  if(button.id==='menuStart')startGame();
+}
+document.getElementById('menuUI').addEventListener('pointerdown',handleMenuPress,{passive:false});
+document.getElementById('menuUI').addEventListener('click',handleMenuPress,{passive:false});
+syncMenuUI();
 
 function startKickoff(whoScored){
   initSlimes();
@@ -324,67 +379,7 @@ function doAI(){
 
 function update(){
   vibCD=Math.max(0,vibCD-1);
-  if(st===KICKOFF){
-    const loser=1-goalWho,s=slimes[loser];
-    if(loser===0){if(inp.p1l)s.vx=-4.5;else if(inp.p1r)s.vx=4.5;else s.vx*=.75;}
-    else if(mode===1){if(inp.p2l)s.vx=-4.5;else if(inp.p2r)s.vx=4.5;else s.vx*=.75;}
-    s.x+=s.vx;
-    if(loser===0)s.x=Math.max(SR+2,Math.min(W/2-SR,s.x));
-    else          s.x=Math.max(W/2+SR,Math.min(W-SR-2,s.x));
-    ball.x=s.x;ball.y=s.y-SR-BR;
-    if(loser===1&&mode===0&&!kickoffTimer){
-      kickoffTimer=setTimeout(()=>{if(st===KICKOFF){s._kickFire=true;}kickoffTimer=null;},1000);
-    }
-    const fire=loser===0?inp.p1u:(mode===1?inp.p2u:!!s._kickFire);
-    if(fire){
-      s.grab=false;ball.grab=-1;s._kickFire=false;
-      if(kickoffTimer){clearTimeout(kickoffTimer);kickoffTimer=null;}
-      let kx;
-      if(loser===0){kx=inp.p1l?-6:inp.p1r?10:5;}
-      else{kx=mode===1?(inp.p2l?-10:inp.p2r?6:-5):-5;}
-      ball.vx=kx;ball.vy=-13;s.vy=-14;s.onG=false;st=PLAY;seJump();
-    }
-    return;
-  }
-  if(st!==PLAY)return;
-  timer--;if(timer<=0){st=END;stopBGM();seEnd();return;}
-  const p=slimes[0];
-  if(inp.p1l)p.vx=-4.5;else if(inp.p1r)p.vx=4.5;else p.vx*=.75;
-  if(inp.p1u&&p.onG){p.vy=-14;p.onG=false;seJump();}
-  p.grab=!!inp.p1g;
-  if(mode===1){
-    const q=slimes[1];
-    if(inp.p2l)q.vx=-4.5;else if(inp.p2r)q.vx=4.5;else q.vx*=.75;
-    if(inp.p2u&&q.onG){q.vy=-14;q.onG=false;seJump();}
-    q.grab=!!inp.p2g;
-  } else {doAI();}
-  for(let i=0;i<2;i++){
-    const s=slimes[i];
-    s.vy+=G;s.x+=s.vx;s.y+=s.vy;
-    if(s.y>=GY){s.y=GY;s.vy=0;s.onG=true;}else s.onG=false;
-    if(i===0)s.x=Math.max(SR+2,Math.min(W/2-SR,s.x));
-    else      s.x=Math.max(W/2+SR,Math.min(W-SR-2,s.x));
-    const inGoal=i===0?s.x<GL_X+GL_W+SR+30:s.x>GR_X-SR-30;
-    s.campT=inGoal?s.campT+1:Math.max(0,s.campT-3);
-    if(s.campT>200)s.vx*=.4;
-  }
-  if(ball.grab>=0){
-    const s=slimes[ball.grab];
-    ball.x=s.x;ball.y=s.y-SR-BR;ball.vx=s.vx;ball.vy=0;ball.rot+=s.vx*.08;
-    const owner=ball.grab,released=(owner===0&&!slimes[0].grab)||(owner===1&&!slimes[1].grab);
-    if(released){ball.vy=-11-Math.abs(slimes[owner].vx)*.3;ball.vx=slimes[owner].vx*1.8;ball.grab=-1;}
-  } else {
-    ball.vy+=G*.8;ball.x+=ball.vx;ball.y+=ball.vy;ball.rot+=ball.vx*.05;
-    if(ball.y-BR<0){ball.y=BR;ball.vy*=-.7;}
-    if(ball.y+BR>=GY){ball.y=GY-BR;ball.vy*=-.6;ball.vx*=.93;if(Math.abs(ball.vy)<.8)ball.vy=0;}
-    if(ball.x-BR<=GL_X+GL_W){if(ball.y+BR>GY-GL_H){scoreGoal(1);return;}ball.x=GL_X+GL_W+BR;ball.vx*=-.75;}
-    if(ball.x+BR>=GR_X){if(ball.y+BR>GY-GL_H){scoreGoal(0);return;}ball.x=GR_X-BR;ball.vx*=-.75;}
-    const spd=Math.hypot(ball.vx,ball.vy);if(spd>18){ball.vx*=18/spd;ball.vy*=18/spd;}
-    for(let i=0;i<2;i++){
-      const s=slimes[i],dx=ball.x-s.x,dy=ball.y-s.y,dist=Math.hypot(dx,dy),min=SR+BR;
-      if(dist<min&&dy<SR*.3){
-        if(s.grab&&ball.grab<0){ball.grab=i;continue;}
-        const nx=dx/dist,ny=dy/dist;
+…716 tokens truncated…t;
         ball.x=s.x+nx*min;ball.y=s.y+ny*min;
         const rv=ball.vx*nx+ball.vy*ny-s.vx*nx-s.vy*ny;
         if(rv<0){
@@ -706,9 +701,10 @@ document.addEventListener('keydown',e=>{
   if(st===MENU){
     if(e.code==='ArrowLeft'&&timeIdx>0){timeIdx--;matchTime=timeOpts[timeIdx];}
     if(e.code==='ArrowRight'&&timeIdx<timeOpts.length-1){timeIdx++;matchTime=timeOpts[timeIdx];}
-    if(e.code==='Tab'){e.preventDefault();mode=1-mode;}
+    if(e.code==='Tab'){e.preventDefault();mode=1-mode;applyMode();}
     if(mode===0){if(e.code==='Digit1')aiDiff=0;if(e.code==='Digit2')aiDiff=1;if(e.code==='Digit3')aiDiff=2;}
     if(e.code==='Enter'||e.code==='Space')startGame();
+    syncMenuUI();
   }
   if(st===PLAY&&e.code==='Escape'){pauseGame();}
   else if(st===PAUSE&&e.code==='Escape'){resumeGame();}
