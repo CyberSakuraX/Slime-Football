@@ -1,7 +1,3 @@
-Exit code: 0
-Wall time: 1 seconds
-Total output lines: 823
-Output:
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -379,7 +375,67 @@ function doAI(){
 
 function update(){
   vibCD=Math.max(0,vibCD-1);
-…716 tokens truncated…t;
+  if(st===KICKOFF){
+    const loser=1-goalWho,s=slimes[loser];
+    if(loser===0){if(inp.p1l)s.vx=-4.5;else if(inp.p1r)s.vx=4.5;else s.vx*=.75;}
+    else if(mode===1){if(inp.p2l)s.vx=-4.5;else if(inp.p2r)s.vx=4.5;else s.vx*=.75;}
+    s.x+=s.vx;
+    if(loser===0)s.x=Math.max(SR+2,Math.min(W/2-SR,s.x));
+    else          s.x=Math.max(W/2+SR,Math.min(W-SR-2,s.x));
+    ball.x=s.x;ball.y=s.y-SR-BR;
+    if(loser===1&&mode===0&&!kickoffTimer){
+      kickoffTimer=setTimeout(()=>{if(st===KICKOFF){s._kickFire=true;}kickoffTimer=null;},1000);
+    }
+    const fire=loser===0?inp.p1u:(mode===1?inp.p2u:!!s._kickFire);
+    if(fire){
+      s.grab=false;ball.grab=-1;s._kickFire=false;
+      if(kickoffTimer){clearTimeout(kickoffTimer);kickoffTimer=null;}
+      let kx;
+      if(loser===0){kx=inp.p1l?-6:inp.p1r?10:5;}
+      else{kx=mode===1?(inp.p2l?-10:inp.p2r?6:-5):-5;}
+      ball.vx=kx;ball.vy=-13;s.vy=-14;s.onG=false;st=PLAY;seJump();
+    }
+    return;
+  }
+  if(st!==PLAY)return;
+  timer--;if(timer<=0){st=END;stopBGM();seEnd();return;}
+  const p=slimes[0];
+  if(inp.p1l)p.vx=-4.5;else if(inp.p1r)p.vx=4.5;else p.vx*=.75;
+  if(inp.p1u&&p.onG){p.vy=-14;p.onG=false;seJump();}
+  p.grab=!!inp.p1g;
+  if(mode===1){
+    const q=slimes[1];
+    if(inp.p2l)q.vx=-4.5;else if(inp.p2r)q.vx=4.5;else q.vx*=.75;
+    if(inp.p2u&&q.onG){q.vy=-14;q.onG=false;seJump();}
+    q.grab=!!inp.p2g;
+  } else {doAI();}
+  for(let i=0;i<2;i++){
+    const s=slimes[i];
+    s.vy+=G;s.x+=s.vx;s.y+=s.vy;
+    if(s.y>=GY){s.y=GY;s.vy=0;s.onG=true;}else s.onG=false;
+    if(i===0)s.x=Math.max(SR+2,Math.min(W/2-SR,s.x));
+    else      s.x=Math.max(W/2+SR,Math.min(W-SR-2,s.x));
+    const inGoal=i===0?s.x<GL_X+GL_W+SR+30:s.x>GR_X-SR-30;
+    s.campT=inGoal?s.campT+1:Math.max(0,s.campT-3);
+    if(s.campT>200)s.vx*=.4;
+  }
+  if(ball.grab>=0){
+    const s=slimes[ball.grab];
+    ball.x=s.x;ball.y=s.y-SR-BR;ball.vx=s.vx;ball.vy=0;ball.rot+=s.vx*.08;
+    const owner=ball.grab,released=(owner===0&&!slimes[0].grab)||(owner===1&&!slimes[1].grab);
+    if(released){ball.vy=-11-Math.abs(slimes[owner].vx)*.3;ball.vx=slimes[owner].vx*1.8;ball.grab=-1;}
+  } else {
+    ball.vy+=G*.8;ball.x+=ball.vx;ball.y+=ball.vy;ball.rot+=ball.vx*.05;
+    if(ball.y-BR<0){ball.y=BR;ball.vy*=-.7;}
+    if(ball.y+BR>=GY){ball.y=GY-BR;ball.vy*=-.6;ball.vx*=.93;if(Math.abs(ball.vy)<.8)ball.vy=0;}
+    if(ball.x-BR<=GL_X+GL_W){if(ball.y+BR>GY-GL_H){scoreGoal(1);return;}ball.x=GL_X+GL_W+BR;ball.vx*=-.75;}
+    if(ball.x+BR>=GR_X){if(ball.y+BR>GY-GL_H){scoreGoal(0);return;}ball.x=GR_X-BR;ball.vx*=-.75;}
+    const spd=Math.hypot(ball.vx,ball.vy);if(spd>18){ball.vx*=18/spd;ball.vy*=18/spd;}
+    for(let i=0;i<2;i++){
+      const s=slimes[i],dx=ball.x-s.x,dy=ball.y-s.y,dist=Math.hypot(dx,dy),min=SR+BR;
+      if(dist<min&&dy<SR*.3){
+        if(s.grab&&ball.grab<0){ball.grab=i;continue;}
+        const nx=dx/dist,ny=dy/dist;
         ball.x=s.x+nx*min;ball.y=s.y+ny*min;
         const rv=ball.vx*nx+ball.vy*ny-s.vx*nx-s.vy*ny;
         if(rv<0){
@@ -764,4 +820,3 @@ loop();
 </script>
 </body>
 </html>
-
