@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 1.3 seconds
+Output:
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -12,19 +15,34 @@ html,body{width:100%;height:100dvh;background:#0d0d1f;overflow:hidden;display:fl
 #wrap{position:relative;width:100%;aspect-ratio:16/9;max-height:100dvh;max-width:calc(100dvh * 16 / 9)}
 canvas{display:block;width:100%;height:100%}
 #overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:flex-end;justify-content:space-between;padding:8px 10px;opacity:0;transition:opacity .25s}
-.ctrl-panel{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(0,0,0,.32);border-radius:16px;padding:7px 10px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.ctrl-panel{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:7px 10px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 .row{display:flex;gap:7px}
-.btn{width:62px;height:58px;border-radius:14px;border:2px solid rgba(255,255,255,.22);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;font-family:Arial;transition:background .07s,transform .07s,border-color .07s;flex-shrink:0;touch-action:none}
+.btn{width:clamp(48px,8.2vw,72px);height:clamp(48px,8vw,66px);border-radius:14px;border:2px solid rgba(255,255,255,.22);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;font-family:Arial;transition:background .07s,transform .07s,border-color .07s;flex-shrink:0;touch-action:none}
 .btn.wide{width:136px;font-size:14px}
 .btn.act{background:rgba(255,255,255,.48);transform:scale(.9);border-color:rgba(255,255,255,.7)}
+.btn.action-btn{flex-direction:column;font-size:20px;gap:1px}
+.btn.action-btn::after{font-size:9px;font-weight:bold;letter-spacing:.4px}
+.btn.jump{background:rgba(99,203,255,.29);border-color:rgba(126,220,240,.55)}
+.btn.grab{background:rgba(255,180,80,.26);border-color:rgba(255,217,120,.5)}
+.btn.jump::after{content:'JUMP'}
+.btn.grab::after{content:'GRAB'}
 .lbl{font-size:11px;font-weight:bold;font-family:Arial;margin-bottom:2px}
 .p1lbl{color:#7EDCF0}
 .p2lbl{color:#FF9EAF}
 .ailbl{color:#C77DFF}
 .ctrl-zones{display:flex;gap:8px;align-items:center}
-.zone-move{display:flex;gap:18px}
-.zone-sep{width:1px;height:52px;background:rgba(255,255,255,.18);flex-shrink:0;margin:0 20px}
-.zone-action{display:flex;gap:8px;align-items:center}
+.zone-move{display:flex;gap:10px}
+.zone-sep{width:1px;height:52px;background:rgba(255,255,255,.18);flex-shrink:0;margin:0 10px}
+.zone-action{display:flex;gap:10px;align-items:center}
+#rotateHint{display:none}
+@media (orientation:portrait) and (max-width:700px){
+  #wrap{opacity:.15;pointer-events:none}
+  #rotateHint{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center;background:#0d0d1f;color:#fff;font-family:Arial,sans-serif}
+  #rotateHint .rotate-icon{font-size:54px;animation:tilt 1.8s ease-in-out infinite}
+  #rotateHint strong{font-size:22px}
+  #rotateHint span{font-size:14px;color:rgba(255,255,255,.7);line-height:1.6}
+}
+@keyframes tilt{50%{transform:rotate(90deg)}}
 </style>
 </head>
 <body>
@@ -35,13 +53,13 @@ canvas{display:block;width:100%;height:100%}
       <div class="p1lbl lbl" id="lbl1">P1 (水色)</div>
       <div class="ctrl-zones">
         <div class="zone-move">
-          <button class="btn" id="b_p1l">◀</button>
-          <button class="btn" id="b_p1r">▶</button>
+          <button class="btn" id="b_p1l" aria-label="P1 左へ移動">◀</button>
+          <button class="btn" id="b_p1r" aria-label="P1 右へ移動">▶</button>
         </div>
         <div class="zone-sep"></div>
         <div class="zone-action">
-          <button class="btn" id="b_p1u">▲</button>
-          <button class="btn" id="b_p1g">⬇</button>
+          <button class="btn action-btn jump" id="b_p1u" aria-label="P1 ジャンプ">▲</button>
+          <button class="btn action-btn grab" id="b_p1g" aria-label="P1 グラブ">⬇</button>
         </div>
       </div>
     </div>
@@ -49,17 +67,22 @@ canvas{display:block;width:100%;height:100%}
       <div class="p2lbl lbl" id="lbl2">P2 (ピンク)</div>
       <div class="ctrl-zones">
         <div class="zone-action" id="p2act">
-          <button class="btn" id="b_p2u">▲</button>
-          <button class="btn" id="b_p2g">⬇</button>
+          <button class="btn action-btn jump" id="b_p2u" aria-label="P2 ジャンプ">▲</button>
+          <button class="btn action-btn grab" id="b_p2g" aria-label="P2 グラブ">⬇</button>
         </div>
         <div class="zone-sep" id="p2sep"></div>
         <div class="zone-move" id="p2btns">
-          <button class="btn" id="b_p2l">◀</button>
-          <button class="btn" id="b_p2r">▶</button>
+          <button class="btn" id="b_p2l" aria-label="P2 左へ移動">◀</button>
+          <button class="btn" id="b_p2r" aria-label="P2 右へ移動">▶</button>
         </div>
       </div>
     </div>
   </div>
+</div>
+<div id="rotateHint" aria-live="polite">
+  <div class="rotate-icon" aria-hidden="true">📱</div>
+  <strong>スマホを横向きにしてください</strong>
+  <span>横画面にすると、操作ボタンが大きくなり<br>親指で快適にプレイできます。</span>
 </div>
 <script>
 const W=800,H=450,GY=360,G=.55,BR=17,SR=42;
@@ -90,10 +113,11 @@ const c=document.getElementById('c');
 c.width=W;c.height=H;
 const ctx=c.getContext('2d');
 
-c.addEventListener('pointerup',e=>{
+c.addEventListener('pointerdown',e=>{
+  e.preventDefault();
   const rc=c.getBoundingClientRect(),scl=W/rc.width;
   handleCanvasClick((e.clientX-rc.left)*scl,(e.clientY-rc.top)*scl);
-});
+},{passive:false});
 
 function vib(pattern){if(navigator.vibrate)navigator.vibrate(pattern);}
 let vibCD=0;
@@ -161,6 +185,7 @@ function showControls(show){
 
 const MENU=0,PLAY=1,GOAL=2,END=3,KICKOFF=4,PAUSE=5;
 let st=MENU,mode=0,aiDiff=1,timeIdx=2,matchTime=3;
+let goalTimer=null,kickoffTimer=null;
 const km1={KeyA:'p1l',KeyD:'p1r',KeyW:'p1u',KeyS:'p1g'};
 document.addEventListener('keydown',e=>{
   if(km1[e.code])inp[km1[e.code]]=true;
@@ -180,6 +205,18 @@ const timeOpts=[1,2,3,5,8];
 let score=[0,0],timer=0,goalWho=-1;
 let aiCD=0,aiGrabT=0;
 let shake=0,goalFlash=0,scorePop=[0,0],particles=[];
+
+function clearGameTimers(){
+  if(goalTimer){clearTimeout(goalTimer);goalTimer=null;}
+  if(kickoffTimer){clearTimeout(kickoffTimer);kickoffTimer=null;}
+}
+function resetInputs(){Object.keys(inp).forEach(key=>inp[key]=false);}
+function returnToMenu(){
+  clearGameTimers();resetInputs();st=MENU;particles=[];
+  showControls(false);releaseWakeLock();stopBGM();
+}
+function pauseGame(){if(st===PLAY){st=PAUSE;resetInputs();stopBGM();}}
+function resumeGame(){if(st===PAUSE){st=PLAY;if(!muted)startBGM();}}
 
 function triggerShake(f){shake=Math.max(shake,f);}
 function spawnParticles(x,y,count,colors,speed,grav){
@@ -213,12 +250,21 @@ function applyMode(){
 }
 
 function startGame(){
+  clearGameTimers();resetInputs();
   matchTime=timeOpts[timeIdx];score=[0,0];timer=matchTime*60*60;
   aiCD=0;aiGrabT=0;vibCD=0;
   initSlimes();initBall(0);st=PLAY;
   applyMode();
   showControls(true);
   requestWakeLock();
+  startBGM();
+}
+
+function startKickoff(whoScored){
+  initSlimes();
+  const loser=1-whoScored;
+  ball={x:slimes[loser].x,y:slimes[loser].y-SR-BR,vx:0,vy:0,rot:0,grab:loser};
+  slimes[loser].grab=true;st=KICKOFF;
   startBGM();
 }
 
@@ -266,10 +312,13 @@ function update(){
     if(loser===0)s.x=Math.max(SR+2,Math.min(W/2-SR,s.x));
     else          s.x=Math.max(W/2+SR,Math.min(W-SR-2,s.x));
     ball.x=s.x;ball.y=s.y-SR-BR;
-    if(loser===1&&mode===0&&!s._kickTimer)s._kickTimer=setTimeout(()=>{s._kickFire=true;},1000);
+    if(loser===1&&mode===0&&!kickoffTimer){
+      kickoffTimer=setTimeout(()=>{if(st===KICKOFF){s._kickFire=true;}kickoffTimer=null;},1000);
+    }
     const fire=loser===0?inp.p1u:(mode===1?inp.p2u:!!s._kickFire);
     if(fire){
-      s.grab=false;ball.grab=-1;s._kickTimer=null;s._kickFire=false;
+      s.grab=false;ball.grab=-1;s._kickFire=false;
+      if(kickoffTimer){clearTimeout(kickoffTimer);kickoffTimer=null;}
       let kx;
       if(loser===0){kx=inp.p1l?-6:inp.p1r?10:5;}
       else{kx=mode===1?(inp.p2l?-10:inp.p2r?6:-5):-5;}
@@ -336,13 +385,8 @@ function scoreGoal(who){
   spawnParticles(gx,GY-GL_H/2,32,[gc,'#FFD700','#FFFFFF','#FF9EAF','#7AE68A'],13,.4);
   vib([100,50,100,50,200]);
   stopBGM();seGoal();
-  setTimeout(()=>{
-    initSlimes();
-    const loser=1-who;
-    ball={x:slimes[loser].x,y:slimes[loser].y-SR-BR,vx:0,vy:0,rot:0,grab:loser};
-    slimes[loser].grab=true;st=KICKOFF;
-    startBGM();
-  },2000);
+  clearGameTimers();
+  goalTimer=setTimeout(()=>{goalTimer=null;if(st===GOAL)startKickoff(who);},2000);
 }
 
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
@@ -623,19 +667,19 @@ function handleCanvasClick(mx,my){
     if(mx>=cx-100&&mx<=cx+100){
       if(my>=H/2-38&&my<=H/2+6){st=PLAY;if(!muted)startBGM();}
       else if(my>=H/2+18&&my<=H/2+62){startGame();}
-      else if(my>=H/2+74&&my<=H/2+118){st=MENU;particles=[];showControls(false);releaseWakeLock();stopBGM();}
+      else if(my>=H/2+74&&my<=H/2+118){returnToMenu();}
     }
     return;
   }
   // インゲームHUDボタン（Pause・Mute）
   if(st===PLAY||st===GOAL||st===KICKOFF){
-    if(mx>=752&&mx<=794&&my>=8&&my<=36){if(st===PLAY){st=PAUSE;stopBGM();}return;}
+    if(mx>=752&&mx<=794&&my>=8&&my<=36){pauseGame();return;}
     if(mx>=704&&mx<=746&&my>=8&&my<=36){toggleMute();return;}
   }
   if(st===END){
     if(mx>=W/2-135&&mx<=W/2-15&&my>=H/2+52&&my<=H/2+94){startGame();return;}
-    if(mx>=W/2+15&&mx<=W/2+135&&my>=H/2+52&&my<=H/2+94){st=MENU;particles=[];showControls(false);releaseWakeLock();stopBGM();return;}
-    st=MENU;particles=[];showControls(false);releaseWakeLock();stopBGM();
+    if(mx>=W/2+15&&mx<=W/2+135&&my>=H/2+52&&my<=H/2+94){returnToMenu();return;}
+    returnToMenu();
   }
 }
 document.addEventListener('keydown',e=>{
@@ -646,21 +690,24 @@ document.addEventListener('keydown',e=>{
     if(mode===0){if(e.code==='Digit1')aiDiff=0;if(e.code==='Digit2')aiDiff=1;if(e.code==='Digit3')aiDiff=2;}
     if(e.code==='Enter'||e.code==='Space')startGame();
   }
-  if(st===PLAY&&e.code==='Escape'){st=PAUSE;stopBGM();}
-  else if(st===PAUSE&&e.code==='Escape'){st=PLAY;if(!muted)startBGM();}
-  if(st===PAUSE&&(e.code==='Enter'||e.code==='Space')){st=PLAY;if(!muted)startBGM();}
-  if(st===END&&(e.code==='Enter'||e.code==='Space')){st=MENU;particles=[];showControls(false);releaseWakeLock();stopBGM();}
+  if(st===PLAY&&e.code==='Escape'){pauseGame();}
+  else if(st===PAUSE&&e.code==='Escape'){resumeGame();}
+  if(st===PAUSE&&(e.code==='Enter'||e.code==='Space'))resumeGame();
+  if(st===END&&(e.code==='Enter'||e.code==='Space'))returnToMenu();
   if(e.code==='KeyM')toggleMute();
 },{capture:false});
 
+function drawGameScene(){
+  drawField();drawGoals();
+  drawSlime(slimes[0],'#7EDCF0',0);
+  drawSlime(slimes[1],mode===0?'#C77DFF':'#FF9EAF',1);
+  drawBall();
+}
 function loop(){
   ctx.clearRect(0,0,W,H);
   if(st===MENU){drawMenu();}
   else if(st===PAUSE){
-    drawField();drawGoals();
-    drawSlime(slimes[0],'#7EDCF0',0);
-    drawSlime(slimes[1],mode===0?'#C77DFF':'#FF9EAF',1);
-    drawBall();drawHUD();drawPause();
+    drawGameScene();drawHUD();drawPause();
   } else {
     update();
     updateParticles();
@@ -671,10 +718,7 @@ function loop(){
     const sy=shake>0?(Math.random()-.5)*shake*.7:0;
     if(shake>0)shake--;
     ctx.save();ctx.translate(sx,sy);
-    drawField();drawGoals();
-    drawSlime(slimes[0],'#7EDCF0',0);
-    drawSlime(slimes[1],mode===0?'#C77DFF':'#FF9EAF',1);
-    drawBall();
+    drawGameScene();
     drawParticles();
     // ゴールフラッシュ
     if(goalFlash>0){
@@ -704,3 +748,4 @@ loop();
 </script>
 </body>
 </html>
+
