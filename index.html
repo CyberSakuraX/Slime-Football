@@ -2,16 +2,18 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
 <link rel="apple-touch-icon" href="icon.png">
 <title>スライムサッカー</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;touch-action:none;user-select:none}
-html,body{width:100%;height:100dvh;background:#0d0d1f;overflow:hidden;display:flex;align-items:center;justify-content:center}
-#wrap{position:relative;width:100%;aspect-ratio:16/9;max-height:100dvh;max-width:calc(100dvh * 16 / 9);container-type:inline-size}
+:root{--app-height:100dvh}
+html{width:100%;height:100%;background:#0d0d1f;overflow:hidden}
+body{width:100%;height:var(--app-height);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:#0d0d1f;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#wrap{position:relative;width:min(100%,calc((var(--app-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9));aspect-ratio:16/9;max-height:100%;container-type:inline-size}
 canvas{display:block;width:100%;height:100%}
-#menuUI{position:absolute;inset:0;z-index:2;display:none;pointer-events:none;align-items:center;justify-content:center;padding:clamp(14px,3cqw,30px);font-family:Arial,sans-serif;color:#fff;background:linear-gradient(180deg,#120820 0%,#0c1845 55%,#1a2e10 100%)}
+#menuUI{position:absolute;inset:0;z-index:2;display:none;pointer-events:none;align-items:center;justify-content:center;padding:clamp(14px,3cqw,30px);overflow-y:auto;touch-action:pan-y;font-family:Arial,sans-serif;color:#fff;background:linear-gradient(180deg,#120820 0%,#0c1845 55%,#1a2e10 100%)}
 #menuUI.is-visible{display:flex;pointer-events:auto}
 .menu-card{width:min(680px,100%);display:grid;gap:clamp(8px,1.3cqw,14px);text-align:center}
 .menu-title{font-size:clamp(28px,5.6cqw,46px);line-height:1;color:#ff9eb0;text-shadow:0 0 18px #ff6ba8}
@@ -51,6 +53,15 @@ canvas{display:block;width:100%;height:100%}
 #overlay.solo #side1 .btn{width:clamp(52px,8cqw,72px);height:clamp(52px,7.5cqw,66px);border-radius:16px}
 #overlay.solo #lbl1{position:absolute;left:12px;bottom:calc(clamp(52px,7.5cqw,66px) + 14px);padding:2px 7px;border-radius:8px;background:rgba(0,0,0,.3)}
 #rotateHint{display:none}
+@media (orientation:landscape) and (max-height:430px){
+  #menuUI{padding:6px 10px}
+  .menu-card{width:min(620px,100%);gap:clamp(4px,1.2vh,7px)}
+  .menu-title{font-size:clamp(24px,8vh,34px)}
+  .menu-section{gap:2px}.menu-label{font-size:11px}.menu-options{gap:6px}
+  .menu-btn{min-height:30px;border-radius:8px;font-size:11px}
+  #menuStart{min-height:38px;border-radius:10px;font-size:16px}
+  .menu-help{display:none}
+}
 @media (orientation:portrait) and (max-width:700px) and (pointer:coarse){
   #wrap{opacity:.15;pointer-events:none}
   #rotateHint{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center;background:#0d0d1f;color:#fff;font-family:Arial,sans-serif}
@@ -110,6 +121,18 @@ canvas{display:block;width:100%;height:100%}
   <span>横画面にすると、操作ボタンが大きくなり<br>親指で快適にプレイできます。</span>
 </div>
 <script>
+function syncViewportHeight(){
+  const height=Math.round(window.visualViewport?.height||window.innerHeight);
+  document.documentElement.style.setProperty('--app-height',height+'px');
+}
+syncViewportHeight();
+window.addEventListener('resize',syncViewportHeight,{passive:true});
+window.addEventListener('orientationchange',()=>{
+  requestAnimationFrame(syncViewportHeight);
+  setTimeout(syncViewportHeight,250);
+},{passive:true});
+window.visualViewport?.addEventListener('resize',syncViewportHeight,{passive:true});
+
 const W=800,H=450,GY=360,G=.55,BR=17,SR=42;
 const GL_X=20,GL_W=16,GL_H=85,GR_X=800-20-16;
 
